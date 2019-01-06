@@ -45,4 +45,12 @@ impl Request {
     pub fn set_http_version(&mut self, http_version: &str) {
         self.http_version = http_version.to_string();
     }
+
+    pub fn uri(&self) -> String {
+        self.uri.clone()
+    }
+
+    pub fn method(&self) -> String {
+        self.method.clone()
+    }
 }

@@ -6,4 +6,9 @@ pub mod handler;
 pub mod server;
 pub mod errors;
 
-pub use crate::server::Server;
+pub use crate::{
+    server::Server,
+    handler::Handler,
+    request::Request,
+    response::Response
+};

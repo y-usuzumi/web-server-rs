@@ -1,4 +1,5 @@
 use std::io::prelude::*;
+use std::collections::HashMap;
 use std::net::{IpAddr, SocketAddr, TcpStream, TcpListener};
 use super::{
     handler::Handler,
@@ -10,7 +11,7 @@ use super::{
 pub struct Server {
     host: String,
     port: u16,
-    handlers: Vec<Handler>
+    handlers: HashMap<(String, String), Handler>
 }
 
 
@@ -19,8 +20,13 @@ impl Server {
         Server{
             host: String::from(host),
             port: port,
-            handlers: Vec::new()
+            handlers: HashMap::new()
         }
+    }
+
+    pub fn add_handler(&mut self, (selector_method, selector_uri): (&str, &str), h: Handler) {
+        let k = (selector_method.to_string(), selector_uri.to_string());
+        self.handlers.insert(k, h);
     }
 
     pub fn run(&self) {
@@ -40,10 +46,16 @@ impl Server {
         let cnt = stream.read(&mut buffer).unwrap();
         match resolve_request(&String::from_utf8_lossy(&buffer[..cnt])) {
             Ok(req) => {
-                if let Some(handler) = self.select_handler(&req) {
-                    let resp = handler(&req);
-                    self.write_response(stream, &resp);
-                }
+                let resp = match self.select_handler(&req) {
+                    Some(handler) => {
+                        handler(&req)
+                    },
+                    None => {
+                        Response::from_params(404, include_str!("pages/404.html"))
+                    }
+                };
+                self.write_response(stream, &resp);
+
             },
             Err(err) => {
                 eprintln!("Error occurred while resolving request:\n{:?}", err)
@@ -51,18 +63,16 @@ impl Server {
         }
     }
 
-    fn select_handler(&self, _: &Request) -> Option<Handler> {
-        Some(box |_| {
-            Response::from_params(200, "Hello world")
-        })
+    fn select_handler(&self, req: &Request) -> Option<&Handler> {
+        self.handlers.get(&(req.method(), req.uri()))
     }
 
     fn write_response(&self, stream: &mut TcpStream, resp: &Response) {
         stream.write("HTTP/1.1 ".as_bytes()).unwrap();
         stream.write(resp.status_code().to_string().as_bytes()).unwrap();
-        stream.write("\r\n".as_bytes());
+        stream.write("\r\n".as_bytes()).unwrap();
         // TODO: write headers
-        stream.write("\r\n".as_bytes());
+        stream.write("\r\n".as_bytes()).unwrap();
         stream.write(resp.body().as_bytes()).unwrap();
         stream.flush().unwrap();
     }
