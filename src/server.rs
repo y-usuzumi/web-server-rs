@@ -5,13 +5,14 @@ use super::{
     handler::Handler,
     request::Request,
     response::Response,
-    errors::WebServerError
+    errors::WebServerError,
+    thread_pool::ThreadPool
 };
 
 pub struct Server {
     host: String,
     port: u16,
-    handlers: HashMap<(String, String), Handler>
+    handlers: HashMap<(String, String), Box<Handler>>
 }
 
 
@@ -24,7 +25,7 @@ impl Server {
         }
     }
 
-    pub fn add_handler(&mut self, (selector_method, selector_uri): (&str, &str), h: Handler) {
+    pub fn add_handler(&mut self, (selector_method, selector_uri): (&str, &str), h: Box<dyn Handler>) {
         let k = (selector_method.to_string(), selector_uri.to_string());
         self.handlers.insert(k, h);
     }
@@ -32,11 +33,14 @@ impl Server {
     pub fn run(&self) {
         let addr = SocketAddr::from((self.host.parse::<IpAddr>().unwrap(), self.port));
         let listener = TcpListener::bind(addr).unwrap();
+        let pool = ThreadPool::new(4);
         println!("Waiting for connections...");
         for stream in listener.incoming() {
             let mut stream = stream.unwrap();
             println!("Connection established!");
-            self.handle_connection(&mut stream);
+            pool.execute(|| {
+                self.handle_connection(&mut stream);
+            })
         }
     }
 
@@ -63,7 +67,7 @@ impl Server {
         }
     }
 
-    fn select_handler(&self, req: &Request) -> Option<&Handler> {
+    fn select_handler(&self, req: &Request) -> Option<&Box<dyn Handler>> {
         self.handlers.get(&(req.method(), req.uri()))
     }
 

@@ -3,4 +3,4 @@ use super::{
     response::Response
 };
 
-pub type Handler = Box<dyn Fn(&Request) -> Response>;
+pub trait Handler = Fn(&Request) -> Response + Sync + 'static;

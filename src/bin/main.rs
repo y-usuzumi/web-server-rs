@@ -1,5 +1,6 @@
 #![feature(box_syntax)]
-
+use std::thread;
+use std::time::Duration;
 use webserver::{
     Server,
     Handler,
@@ -13,7 +14,8 @@ fn handlers() -> Vec<(String, String, Handler)> {
             Response::from_params(200, include_str!("pages/hello.html"))
         }),
         ("GET".to_string(), "/sleep".to_string(), box |_| {
-            Response::from_params(200, "GG")
+            thread::sleep(Duration::from_secs(5));
+            Response::from_params(200, "睡醒了")
         })
     ]
 }
